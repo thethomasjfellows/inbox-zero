@@ -96,7 +96,9 @@ ENV QSTASH_NEXT_SIGNING_KEY="dummy_qstash_next_key_for_build"
 # Cache mount persists between builds for incremental compilation
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     --mount=type=cache,target=/app/apps/web/.next/cache \
-    pnpm --filter inbox-zero-ai exec next build --webpack && \
+    cd /app/apps/web && \
+    pnpm exec next build --webpack && \
+    cd /app && \
     pnpm --filter @inboxzero/worker deploy --legacy --prod /tmp/apps/worker
 
 # === Production image ===
@@ -112,6 +114,10 @@ COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/prisma ./apps/web/prisma
 COPY --from=builder /tmp/apps/worker ./apps/worker
+
+# Fail the image build if the standalone server is not where start.sh expects it.
+RUN test -f apps/web/server.js \
+ && node -e "require('node:module').createRequire('/app/apps/web/server.js')('next')"
 
 # Copy runtime scripts
 COPY docker/scripts /app/docker/scripts
