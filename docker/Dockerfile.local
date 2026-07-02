@@ -91,16 +91,12 @@ ENV QSTASH_TOKEN="dummy_qstash_token_for_build"
 ENV QSTASH_CURRENT_SIGNING_KEY="dummy_qstash_curr_key_for_build"
 ENV QSTASH_NEXT_SIGNING_KEY="dummy_qstash_next_key_for_build"
 
-# Step 1: Generate Prisma client (separate step = memory freed after)
-RUN npx prisma generate --schema=apps/web/prisma/schema.prisma
-
-# Step 2: Build Next.js with webpack (not Turbopack) for lower memory usage
+# Build Next.js with webpack (not Turbopack) for lower memory usage
 # --webpack: Use webpack/SWC instead of Turbopack (Next.js 16 default)
 # Cache mount persists between builds for incremental compilation
-RUN --mount=type=cache,target=/app/apps/web/.next/cache \
-    cd apps/web && \
-    ../../node_modules/.bin/next build --webpack && \
-    cd ../.. && \
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    --mount=type=cache,target=/app/apps/web/.next/cache \
+    pnpm --filter inbox-zero-ai exec next build --webpack && \
     pnpm --filter @inboxzero/worker deploy --legacy --prod /tmp/apps/worker
 
 # === Production image ===

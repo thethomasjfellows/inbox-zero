@@ -34,8 +34,9 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{- if and .Values.redis.enabled (not .Values.externalRedis.enabled) }}
+      {{- if or (and .Values.redis.enabled (not .Values.externalRedis.enabled)) .Values.codexCli.enabled }}
       initContainers:
+        {{- if and .Values.redis.enabled (not .Values.externalRedis.enabled) }}
         - name: wait-for-redis
           image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
           imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
@@ -53,6 +54,8 @@ spec:
                   key: REDIS_PASSWORD
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+        {{- end }}
+        {{- include "inbox-zero.codexCliInitContainer" . | nindent 8 }}
       {{- end }}
       containers:
         - name: worker
@@ -82,13 +85,16 @@ spec:
                   name: {{ .Values.externalRedis.existingSecret.name }}
                   key: {{ .Values.externalRedis.existingSecret.redisUrlKey }}
             {{- end }}
+            {{- include "inbox-zero.codexCliEnv" . | nindent 12 }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          {{- include "inbox-zero.codexCliVolumeMounts" . | nindent 10 }}
           resources:
             {{- toYaml .Values.worker.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+      {{- include "inbox-zero.codexCliVolumes" . | nindent 6 }}
       {{- with .Values.worker.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

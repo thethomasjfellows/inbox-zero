@@ -90,10 +90,8 @@ ENV DOCKER_BUILD="true"
 
 RUN rm -f /app/apps/web/.env && touch /app/apps/web/.env
 
-RUN npx prisma generate --schema=apps/web/prisma/schema.prisma
-
 RUN cd /app/apps/web \
- && pnpm exec next build \
+ && pnpm exec next build --webpack \
  && cd /app \
  && pnpm --filter inbox-zero-ai deploy --legacy --prod /tmp/apps/web \
  && pnpm --filter @inboxzero/worker deploy --legacy --prod /tmp/apps/worker \
@@ -107,6 +105,19 @@ WORKDIR /app
 
 # Install openssl for Prisma
 RUN apk add --no-cache openssl
+
+# Optional: build a Codex CLI-capable image for trusted self-hosted deployments.
+# Auth/config must be mounted at runtime; never bake Codex credentials into the image.
+ARG INSTALL_CODEX_CLI=false
+ARG CODEX_CLI_VERSION=""
+RUN if [ "$INSTALL_CODEX_CLI" = "true" ]; then \
+      if [ -z "$CODEX_CLI_VERSION" ] || [ "$CODEX_CLI_VERSION" = "latest" ]; then \
+        echo "CODEX_CLI_VERSION must be an exact version when INSTALL_CODEX_CLI=true"; \
+        exit 1; \
+      fi; \
+      npm install -g "@openai/codex@${CODEX_CLI_VERSION}"; \
+      command -v codex; \
+    fi
 
 # Copy the standalone server output (contains node_modules subset + server.js)
 COPY --from=builder /app/apps/web/.next/standalone ./

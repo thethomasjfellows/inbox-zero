@@ -33,8 +33,9 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{- if and .Values.postgresql.enabled (not .Values.externalDatabase.enabled) }}
+      {{- if or (and .Values.postgresql.enabled (not .Values.externalDatabase.enabled)) .Values.codexCli.enabled }}
       initContainers:
+        {{- if and .Values.postgresql.enabled (not .Values.externalDatabase.enabled) }}
         - name: wait-for-postgresql
           image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
           imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
@@ -51,6 +52,8 @@ spec:
               value: {{ .Values.postgresql.auth.database | quote }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+        {{- end }}
+        {{- include "inbox-zero.codexCliInitContainer" . | nindent 8 }}
       {{- end }}
       containers:
         - name: web
@@ -81,9 +84,11 @@ spec:
             {{- end }}
             {{- include "inbox-zero.externalDatabaseEnvRefs" . | nindent 12 }}
             {{- include "inbox-zero.externalRedisEnvRefs" . | nindent 12 }}
+            {{- include "inbox-zero.codexCliEnv" . | nindent 12 }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          {{- include "inbox-zero.codexCliVolumeMounts" . | nindent 10 }}
           startupProbe:
             httpGet:
               path: /api/health
@@ -106,6 +111,7 @@ spec:
             {{- toYaml .Values.web.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+      {{- include "inbox-zero.codexCliVolumes" . | nindent 6 }}
       {{- with .Values.web.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

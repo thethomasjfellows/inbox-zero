@@ -107,7 +107,7 @@ Codex example:
 ```bash
 cd apps/web
 pnpm add ai-sdk-provider-codex-cli@1.1.0
-pnpm add -g @openai/codex
+pnpm add -g @openai/codex@0.142.4
 codex login
 ```
 
@@ -116,6 +116,56 @@ CLI_LLM_ENABLED=true
 DEFAULT_LLMS=codex-cli:gpt-5.3-codex
 CODEX_CLI_ALLOW_NPX=false
 ```
+
+For Kubernetes, use the Codex-enabled image and Secret-mounted auth/config
+instead of installing packages inside a running pod. This path uses Codex CLI
+authentication, not `OPENAI_API_KEY`.
+
+Build an image with the Codex CLI binary pinned:
+
+```bash
+docker build \
+  -f docker/Dockerfile.prod \
+  --build-arg INSTALL_CODEX_CLI=true \
+  --build-arg CODEX_CLI_VERSION=0.142.4 \
+  -t <registry>/inbox-zero:<tag>-codex .
+```
+
+After running `codex login` locally, create a Kubernetes Secret from the Codex
+auth/config files your installed CLI uses. Verify the paths on your machine
+before creating the Secret.
+
+```bash
+kubectl create secret generic inbox-zero-codex-cli \
+  --namespace inbox-zero \
+  --from-file=auth.json="$HOME/.codex/auth.json"
+```
+
+If your Codex CLI installation uses an additional config file, include it too:
+
+```bash
+kubectl create secret generic inbox-zero-codex-cli \
+  --namespace inbox-zero \
+  --from-file=auth.json="$HOME/.codex/auth.json" \
+  --from-file=config.toml="$HOME/.codex/config.toml"
+```
+
+Then enable the chart's Codex block:
+
+```yaml
+env:
+  DEFAULT_LLMS: codex-cli:gpt-5.3-codex
+
+codexCli:
+  enabled: true
+  existingSecret: inbox-zero-codex-cli
+  codexPath: /usr/local/bin/codex
+  allowNpx: false
+```
+
+Use this only for trusted self-hosted deployments. Do not commit Codex auth
+files, bake them into the image, or expose this as a multi-tenant public CLI
+execution service.
 
 Claude Code example:
 

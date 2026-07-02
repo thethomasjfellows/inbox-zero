@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  type Dispatch,
-  type SetStateAction,
-  useCallback,
-  useState,
-  useRef,
-} from "react";
+import { useCallback, useState, useRef } from "react";
 import { PlusIcon, UserPenIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,11 +19,10 @@ import { RuleDialog } from "@/app/(app)/[emailAccountId]/assistant/RuleDialog";
 import { useDialogState } from "@/hooks/useDialogState";
 import { useRules } from "@/hooks/useRules";
 import { ExamplesGrid } from "@/app/(app)/[emailAccountId]/assistant/ExamplesList";
-import { toastError } from "@/components/Toast";
+import { toastError, toastSuccess } from "@/components/Toast";
 import { AvailableActionsPanel } from "@/app/(app)/[emailAccountId]/assistant/AvailableActionsPanel";
-import { useChat } from "@/providers/ChatProvider";
-import { useSidebar } from "@/components/ui/sidebar";
 import { convertMentionsToLabels } from "@/utils/mention";
+import { createRulesFromPromptAction } from "@/utils/actions/rule";
 
 export function RulesPrompt({ onSubmitted }: { onSubmitted?: () => void }) {
   const { provider } = useAccount();
@@ -78,10 +71,9 @@ function RulesPromptForm({
   onHideExamples: () => void;
   onSubmitted?: () => void;
 }) {
+  const { emailAccountId } = useAccount();
   const { mutate } = useRules();
   const { userLabels, isLoading: isLoadingLabels } = useLabels();
-  const { chat, submitTextMessage } = useChat();
-  const { isMobile, setOpen, setOpenMobile } = useSidebar();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -100,34 +92,41 @@ function RulesPromptForm({
       return;
     }
 
-    if (chat.status !== "ready") {
-      toastError({
-        description: "Please wait for the current chat response to finish.",
-      });
-      return;
-    }
-
     setIsSubmitting(true);
-    openChatSidebar({ isMobile, setOpen, setOpenMobile });
 
-    let submitted = false;
     try {
-      await submitTextMessage(`Create these email rules:\n\n${prompt}`);
-      submitted = true;
+      const result = await createRulesFromPromptAction(emailAccountId, {
+        prompt,
+      });
+
+      if (result?.serverError) {
+        toastError({ description: result.serverError });
+        return;
+      }
+
+      const createdCount = result?.data?.createdCount ?? 0;
+
+      if (createdCount === 0) {
+        toastError({
+          description: "No new rules were created.",
+        });
+        return;
+      }
+
+      toastSuccess({
+        description:
+          createdCount === 1
+            ? "Created 1 rule."
+            : `Created ${createdCount} rules.`,
+      });
+      mutate();
       onSubmitted?.();
     } catch {
-      toastError({ description: "Could not send this prompt to chat." });
+      toastError({ description: "Could not create rules from this prompt." });
     } finally {
-      if (!submitted || !onSubmitted) setIsSubmitting(false);
+      setIsSubmitting(false);
     }
-  }, [
-    chat.status,
-    isMobile,
-    onSubmitted,
-    setOpen,
-    setOpenMobile,
-    submitTextMessage,
-  ]);
+  }, [emailAccountId, mutate, onSubmitted]);
 
   const addExamplePrompt = useCallback((example: string) => {
     editorRef.current?.appendText(`\n* ${example.trim()}`);
@@ -221,25 +220,4 @@ function RulesPromptForm({
       />
     </div>
   );
-}
-
-function openChatSidebar({
-  isMobile,
-  setOpen,
-  setOpenMobile,
-}: {
-  isMobile: boolean;
-  setOpen: Dispatch<SetStateAction<string[]>>;
-  setOpenMobile: Dispatch<SetStateAction<string[]>>;
-}) {
-  const openChat = (openSidebars: string[]) =>
-    openSidebars.includes("chat-sidebar")
-      ? openSidebars
-      : [...openSidebars, "chat-sidebar"];
-
-  if (isMobile) {
-    setOpenMobile(openChat);
-  } else {
-    setOpen(openChat);
-  }
 }

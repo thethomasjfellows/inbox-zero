@@ -1,22 +1,9 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
 import type { Logger } from "@/utils/logger";
 import prisma from "@/utils/prisma";
-import { Prisma } from "@/generated/prisma/client";
-import { isDefined } from "@/utils/types";
-import {
-  extractDomainFromEmail,
-  extractEmailAddress,
-  extractNameFromEmail,
-} from "@/utils/email";
 import type { EmailProvider } from "@/utils/email/types";
-import { internalDateToDate } from "@/utils/date";
-import { findUnsubscribeLink } from "@/utils/parse/parseHtml.server";
-import {
-  cleanUnsubscribeLink,
-  parseListUnsubscribeHeader,
-} from "@/utils/parse/unsubscribe";
+import { upsertEmailMessageStatsBatch } from "@/utils/email/email-message-stats";
 
 const PAGE_SIZE = 20; // avoid setting too high because it will hit the rate limit
 const MAX_PAGES = 50;
@@ -177,43 +164,11 @@ export async function saveBatch({
 
   const messages = res.messages ?? [];
 
-  const emailsToSave = messages
-    .map((m) => {
-      const unsubscribeLink = mergeUnsubscribeSources({
-        htmlUnsubscribeLink: findUnsubscribeLink(m.textHtml),
-        listUnsubscribeHeader: m.headers["list-unsubscribe"],
-      });
-
-      const date = internalDateToDate(m.internalDate);
-      if (!date) {
-        logger.error("No date for email", {
-          messageId: m.id,
-          date: m.internalDate,
-        });
-        return;
-      }
-
-      return {
-        threadId: m.threadId,
-        messageId: m.id,
-        from: extractEmailAddress(m.headers.from),
-        fromName: extractNameFromEmail(m.headers.from),
-        fromDomain: extractDomainFromEmail(m.headers.from),
-        to: m.headers.to ? extractEmailAddress(m.headers.to) : "Missing",
-        date,
-        unsubscribeLink,
-        read: !m.labelIds?.includes("UNREAD"),
-        sent: !!m.labelIds?.includes("SENT"),
-        draft: !!m.labelIds?.includes("DRAFT"),
-        inbox: !!m.labelIds?.includes("INBOX"),
-        emailAccountId,
-      };
-    })
-    .filter(isDefined);
-
-  logger.info("Saving", { count: emailsToSave.length });
-
-  await saveEmailMessages(emailsToSave);
+  await upsertEmailMessageStatsBatch({
+    emailAccountId,
+    messages,
+    logger,
+  });
 
   return {
     data: {
@@ -221,97 +176,4 @@ export async function saveBatch({
       nextPageToken: res.nextPageToken,
     },
   };
-}
-
-async function saveEmailMessages(
-  emails: {
-    threadId: string;
-    messageId: string;
-    from: string;
-    fromName: string;
-    fromDomain: string;
-    to: string;
-    date: Date;
-    unsubscribeLink: string | null | undefined;
-    read: boolean;
-    sent: boolean;
-    draft: boolean;
-    inbox: boolean;
-    emailAccountId: string;
-  }[],
-) {
-  if (emails.length === 0) return;
-
-  const rows = emails.map(
-    (email) => Prisma.sql`(
-      ${randomUUID()}::text,
-      ${email.emailAccountId}::text,
-      ${email.threadId}::text,
-      ${email.messageId}::text,
-      ${email.date}::timestamp,
-      ${email.from}::text,
-      ${email.fromName}::text,
-      ${email.fromDomain}::text,
-      ${email.to}::text,
-      ${email.unsubscribeLink}::text,
-      ${email.read}::boolean,
-      ${email.sent}::boolean,
-      ${email.draft}::boolean,
-      ${email.inbox}::boolean,
-      NOW(),
-      NOW()
-    )`,
-  );
-
-  await prisma.$executeRaw`
-    INSERT INTO "EmailMessage" (
-      "id",
-      "emailAccountId",
-      "threadId",
-      "messageId",
-      "date",
-      "from",
-      "fromName",
-      "fromDomain",
-      "to",
-      "unsubscribeLink",
-      "read",
-      "sent",
-      "draft",
-      "inbox",
-      "createdAt",
-      "updatedAt"
-    )
-    VALUES ${Prisma.join(rows)}
-    ON CONFLICT ("emailAccountId", "threadId", "messageId") DO UPDATE SET
-      "date" = EXCLUDED."date",
-      "from" = EXCLUDED."from",
-      "fromName" = EXCLUDED."fromName",
-      "fromDomain" = EXCLUDED."fromDomain",
-      "to" = EXCLUDED."to",
-      "unsubscribeLink" = EXCLUDED."unsubscribeLink",
-      "read" = EXCLUDED."read",
-      "sent" = EXCLUDED."sent",
-      "draft" = EXCLUDED."draft",
-      "inbox" = EXCLUDED."inbox",
-      "updatedAt" = NOW()
-  `;
-}
-
-function mergeUnsubscribeSources({
-  htmlUnsubscribeLink,
-  listUnsubscribeHeader,
-}: {
-  htmlUnsubscribeLink?: string | null;
-  listUnsubscribeHeader?: string | null;
-}) {
-  if (!listUnsubscribeHeader) return cleanUnsubscribeLink(htmlUnsubscribeLink);
-
-  const normalizedHtmlLink = cleanUnsubscribeLink(htmlUnsubscribeLink);
-  if (!normalizedHtmlLink) return listUnsubscribeHeader;
-
-  const headerLinks = parseListUnsubscribeHeader(listUnsubscribeHeader);
-  if (headerLinks.includes(normalizedHtmlLink)) return listUnsubscribeHeader;
-
-  return `${listUnsubscribeHeader}, <${normalizedHtmlLink}>`;
 }

@@ -37,7 +37,7 @@ spec:
               command:
                 - sh
                 - -ec
-                - curl --fail --silent --show-error --location "$URL" -H "Authorization: Bearer $CRON_SECRET"
+                - 'curl --fail --silent --show-error --location "$URL" -H "Authorization: Bearer $CRON_SECRET"'
               resources:
                 {{- toYaml $.Values.cron.resources | nindent 16 }}
 {{- end }}

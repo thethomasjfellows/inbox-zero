@@ -12,6 +12,7 @@ import {
   updateDraftReplyConfidenceBody,
   deleteRuleBody,
   createRulesOnboardingBody,
+  createRulesFromPromptBody,
   type CategoryConfig,
   type CategoryAction,
   toggleRuleBody,
@@ -58,6 +59,8 @@ import { getEmailAccountForRuleExecution } from "@/utils/user/get";
 import type { AttachmentSourceInput } from "@/utils/attachments/source-schema";
 import { assertCanUseDigestsIfNeeded } from "@/utils/premium/server";
 import { toCreateOrUpdateRuleCondition } from "@/utils/rule/create-rule-condition";
+import { aiPromptToRules } from "@/utils/ai/rule/prompt-to-rules";
+import { getEmailAccountWithAi } from "@/utils/user/get";
 
 export const createRuleAction = actionClient
   .metadata({ name: "createRule" })
@@ -109,6 +112,58 @@ export const createRuleAction = actionClient
       } catch (error) {
         handleRuleError(error, logger);
       }
+    },
+  );
+
+export const createRulesFromPromptAction = actionClient
+  .metadata({ name: "createRulesFromPrompt" })
+  .inputSchema(createRulesFromPromptBody)
+  .action(
+    async ({
+      ctx: { emailAccountId, logger, provider },
+      parsedInput: { prompt },
+    }) => {
+      const emailAccount = await getEmailAccountWithAi({ emailAccountId });
+
+      if (!emailAccount) {
+        throw new SafeError("Email account not found");
+      }
+
+      const rules = await aiPromptToRules({
+        emailAccount,
+        promptFile: prompt,
+      });
+
+      const createdRules = [];
+
+      for (const rule of rules) {
+        try {
+          const createdRule = await createRule({
+            result: rule,
+            emailAccountId,
+            provider,
+            runOnThreads: true,
+            logger,
+          });
+          createdRules.push(createdRule);
+        } catch (error) {
+          if (isDuplicateError(error, "name")) {
+            logger.info("Rule already exists, skipping prompt-created rule", {
+              ruleName: rule.name,
+            });
+            continue;
+          }
+          handleRuleError(error, logger);
+        }
+      }
+
+      return {
+        createdCount: createdRules.length,
+        rules: createdRules.map((rule) => ({
+          id: rule.id,
+          name: rule.name,
+        })),
+      };
     },
   );
 

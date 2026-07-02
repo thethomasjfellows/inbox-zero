@@ -353,6 +353,13 @@ export type CreateRulesOnboardingBody = z.infer<
   typeof createRulesOnboardingBody
 >;
 
+export const createRulesFromPromptBody = z.object({
+  prompt: z.string().trim().min(1, "Please enter a prompt to create rules"),
+});
+export type CreateRulesFromPromptBody = z.infer<
+  typeof createRulesFromPromptBody
+>;
+
 export const toggleRuleBody = z
   .object({
     ruleId: z.string().optional(),

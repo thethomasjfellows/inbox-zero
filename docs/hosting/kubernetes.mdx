@@ -126,6 +126,62 @@ worker:
 
 Provide the QStash secrets using `secretEnv` or `existingSecret`; see the [Environment Variables reference](/hosting/environment-variables).
 
+## Codex CLI LLM
+
+To use Codex CLI as the LLM provider, build a Codex-enabled image and mount
+Codex auth/config from a Kubernetes Secret. This path does not use
+`OPENAI_API_KEY`.
+
+Build and push an image with a pinned Codex CLI version:
+
+```bash
+docker build \
+  -f docker/Dockerfile.prod \
+  --build-arg INSTALL_CODEX_CLI=true \
+  --build-arg CODEX_CLI_VERSION=0.142.4 \
+  -t <registry>/inbox-zero:<tag>-codex .
+docker push <registry>/inbox-zero:<tag>-codex
+```
+
+Create the Codex auth Secret after running `codex login` locally. Verify the
+files used by your installed Codex CLI before creating the Secret.
+
+```bash
+kubectl create secret generic inbox-zero-codex-cli \
+  --namespace inbox-zero \
+  --from-file=auth.json="$HOME/.codex/auth.json"
+```
+
+Use the example overlay as a starting point:
+
+```bash
+cp charts/inbox-zero/values-codex-cli.example.yaml values.codex.yaml
+```
+
+Set the image, public URL, database, Redis, OAuth, and Pub/Sub values for your
+cluster, then install with both your production values and the Codex overlay:
+
+```bash
+helm upgrade --install inbox-zero ./charts/inbox-zero \
+  -n inbox-zero \
+  --create-namespace \
+  -f values.prod.yaml \
+  -f values.codex.yaml
+```
+
+Before installing, inspect the render:
+
+```bash
+helm template inbox-zero ./charts/inbox-zero \
+  -n inbox-zero \
+  -f values.prod.yaml \
+  -f values.codex.yaml
+```
+
+The rendered web and worker Deployments should include `CLI_LLM_ENABLED=true`,
+`CODEX_CLI_PATH=/usr/local/bin/codex`, and Codex config mounts. The migration
+Job should not mount the Codex Secret.
+
 ## Smoke Test
 
 After installing, check the rollout:

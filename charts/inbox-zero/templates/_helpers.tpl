@@ -123,6 +123,64 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 {{- end -}}
 
+{{- define "inbox-zero.codexCliEnv" -}}
+{{- if .Values.codexCli.enabled }}
+- name: CLI_LLM_ENABLED
+  value: "true"
+- name: CODEX_CLI_ALLOW_NPX
+  value: {{ ternary "true" "false" .Values.codexCli.allowNpx | quote }}
+- name: CODEX_CLI_PATH
+  value: {{ .Values.codexCli.codexPath | quote }}
+{{- end }}
+{{- end -}}
+
+{{- define "inbox-zero.codexCliInitContainer" -}}
+{{- if .Values.codexCli.enabled }}
+- name: prepare-codex-cli-config
+  image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+  imagePullPolicy: {{ .Values.image.pullPolicy }}
+  command:
+    - sh
+    - -ec
+    - |
+      mkdir -p {{ .Values.codexCli.mountPath | quote }}
+      cp -a {{ .Values.codexCli.secretMountPath | quote }}/. {{ .Values.codexCli.mountPath | quote }}/
+      chmod -R go-rwx {{ .Values.codexCli.mountPath | quote }}
+  volumeMounts:
+    - name: codex-cli-config
+      mountPath: {{ .Values.codexCli.mountPath | quote }}
+    - name: codex-cli-secret
+      mountPath: {{ .Values.codexCli.secretMountPath | quote }}
+      readOnly: true
+  securityContext:
+    {{- toYaml .Values.securityContext | nindent 4 }}
+{{- end }}
+{{- end -}}
+
+{{- define "inbox-zero.codexCliVolumeMounts" -}}
+{{- if .Values.codexCli.enabled }}
+volumeMounts:
+  - name: codex-cli-config
+    mountPath: {{ .Values.codexCli.mountPath | quote }}
+{{- end }}
+{{- end -}}
+
+{{- define "inbox-zero.codexCliVolumes" -}}
+{{- if .Values.codexCli.enabled }}
+volumes:
+  - name: codex-cli-config
+    emptyDir: {}
+  - name: codex-cli-secret
+    secret:
+      secretName: {{ required "codexCli.existingSecret is required when codexCli.enabled=true" .Values.codexCli.existingSecret | quote }}
+      defaultMode: {{ .Values.codexCli.defaultMode }}
+      {{- with .Values.codexCli.items }}
+      items:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
+{{- end -}}
+
 {{- define "inbox-zero.migrationDatabaseEnv" -}}
 {{- if and .Values.externalDatabase.enabled .Values.externalDatabase.existingSecret.name }}
 {{- include "inbox-zero.externalDatabaseEnvRefs" . }}

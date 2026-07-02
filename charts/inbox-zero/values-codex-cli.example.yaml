@@ -1,0 +1,53 @@
+# Example overlay for running Inbox Zero with the experimental codex-cli LLM
+# provider on trusted self-hosted Kubernetes infrastructure.
+#
+# This file intentionally contains placeholders only. Keep database, Redis,
+# OAuth, cron, and Codex auth values in Kubernetes Secrets or your external
+# secret controller.
+
+image:
+  repository: <registry>/inbox-zero
+  tag: <tag>-codex
+  pullPolicy: IfNotPresent
+
+existingSecret: inbox-zero-secrets
+
+externalDatabase:
+  enabled: true
+  existingSecret:
+    name: inbox-zero-database
+postgresql:
+  enabled: false
+
+externalRedis:
+  enabled: true
+  existingSecret:
+    name: inbox-zero-redis
+redis:
+  enabled: false
+redisHttp:
+  enabled: false
+
+env:
+  NEXT_PUBLIC_BASE_URL: https://<your-host>
+  NEXT_PUBLIC_AI_MODEL_SETTINGS_DISABLED: "true"
+  DEFAULT_LLMS: codex-cli:gpt-5.3-codex
+  GOOGLE_PUBSUB_TOPIC_NAME: projects/<project>/topics/<topic>
+  QUEUE_BACKEND: bullmq
+
+codexCli:
+  enabled: true
+  existingSecret: inbox-zero-codex-cli
+  mountPath: /root/.codex
+  secretMountPath: /var/run/inbox-zero/codex-cli
+  codexPath: /usr/local/bin/codex
+  allowNpx: false
+  items:
+    - key: auth.json
+      path: auth.json
+    # Uncomment if your Codex CLI installation uses a config file.
+    # - key: config.toml
+    #   path: config.toml
+
+worker:
+  enabled: true

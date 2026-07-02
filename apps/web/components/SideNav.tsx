@@ -99,8 +99,18 @@ export const useNavigation = () => {
         href: prefixPath(currentEmailAccountId, "/channels"),
         icon: MessagesSquareIcon,
       },
+      ...(showIntegrations
+        ? [
+            {
+              name: "Integrations",
+              href: prefixPath(currentEmailAccountId, "/integrations"),
+              icon: ZapIcon,
+              beta: true,
+            },
+          ]
+        : []),
     ],
-    [currentEmailAccountId],
+    [currentEmailAccountId, showIntegrations],
   );
 
   const cleanupItems: NavItem[] = useMemo(
@@ -156,18 +166,8 @@ export const useNavigation = () => {
         icon: HardDriveIcon,
         new: false,
       },
-      ...(showIntegrations
-        ? [
-            {
-              name: "Integrations",
-              href: prefixPath(currentEmailAccountId, "/integrations"),
-              icon: ZapIcon,
-              beta: true,
-            },
-          ]
-        : []),
     ],
-    [currentEmailAccountId, showMeetingBriefs, showIntegrations],
+    [currentEmailAccountId, showMeetingBriefs],
   );
 
   return {
