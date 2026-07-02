@@ -34,9 +34,12 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/Dockerfile.local
+          file: docker/Dockerfile.prod
           platforms: linux/amd64
           push: true
+          build-args: |
+            INSTALL_CODEX_CLI=true
+            CODEX_CLI_VERSION=0.142.4
           tags: |
             ghcr.io/${{ github.repository_owner }}/inbox-zero:${{ inputs.tag }}
             ghcr.io/${{ github.repository_owner }}/inbox-zero:latest
