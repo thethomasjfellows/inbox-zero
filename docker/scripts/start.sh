@@ -20,4 +20,8 @@ fi
 
 # Start the Next.js application
 echo "✅ Configuration complete. Starting server..."
-exec node apps/web/server.js
+if [ -f apps/web/server.js ]; then
+    exec node apps/web/server.js
+fi
+
+exec node server.js

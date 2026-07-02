@@ -111,13 +111,21 @@ RUN apk add --no-cache openssl
 # Copy standalone build
 COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder /app/apps/web/.next/static ./.next/static
 COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder /app/apps/web/public ./public
 COPY --from=builder /app/apps/web/prisma ./apps/web/prisma
 COPY --from=builder /tmp/apps/worker ./apps/worker
 
 # Fail the image build if the standalone server is not where start.sh expects it.
-RUN test -f apps/web/server.js \
- && node -e "require('node:module').createRequire('/app/apps/web/server.js')('next')"
+RUN if [ -f apps/web/server.js ]; then \
+      node -e "require('node:module').createRequire('/app/apps/web/server.js')('next')"; \
+    elif [ -f server.js ]; then \
+      node -e "require('node:module').createRequire('/app/server.js')('next')"; \
+    else \
+      find . -maxdepth 4 -name server.js -print; \
+      exit 1; \
+    fi
 
 # Copy runtime scripts
 COPY docker/scripts /app/docker/scripts
