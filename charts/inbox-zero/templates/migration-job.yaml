@@ -27,7 +27,7 @@ spec:
       {{- end }}
       containers:
         - name: migrate
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ include "inbox-zero.imageRef" .Values.image }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
             - /app/docker/scripts/migrate.sh

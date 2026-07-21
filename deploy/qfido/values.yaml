@@ -1,0 +1,103 @@
+# Reconstructed non-secret qFido overlay captured read-only on 2026-07-21.
+# Repository preparation only: do not apply until docs/recovery/qfido-kubernetes.md gates pass.
+image:
+  repository: ghcr.io/thethomasjfellows/inbox-zero
+  tag: codex-20260703-gmail-stats-reconcile-prod1
+  digest: sha256:9b1ea25652fbd0df6c989b960713a4ca94192bdfdca9f377aeb72462ef8f3f7b
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: ghcr-thethomasjfellows
+
+existingSecret: inbox-zero-runtime-secret
+
+env:
+  NODE_ENV: production
+  NEXT_PUBLIC_BASE_URL: https://inbox-zero.5.78.213.37.sslip.io
+  NEXT_PUBLIC_BYPASS_PREMIUM_CHECKS: "true"
+  NEXT_PUBLIC_EMAIL_SEND_ENABLED: "true"
+  NEXT_PUBLIC_WEBHOOK_ACTION_ENABLED: "true"
+  NEXT_PUBLIC_INTEGRATIONS_ENABLED: "true"
+  NEXT_PUBLIC_AI_MODEL_SETTINGS_DISABLED: "true"
+  DEFAULT_LLMS: codex-cli:gpt-5.5
+  GOOGLE_PUBSUB_TOPIC_NAME: projects/qfido-inbox-zero-gmail/topics/inbox-zero-emails
+  QUEUE_BACKEND: bullmq
+
+codexCli:
+  enabled: true
+  existingSecret: inbox-zero-codex-cli
+  mountPath: /root/.codex
+  secretMountPath: /var/run/inbox-zero/codex-cli
+  codexPath: /usr/local/bin/codex
+  allowNpx: false
+  items:
+    - key: auth.json
+      path: auth.json
+    - key: config.toml
+      path: config.toml
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: inbox-zero.5.78.213.37.sslip.io
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: inbox-zero-tls
+      hosts:
+        - inbox-zero.5.78.213.37.sslip.io
+
+postgresql:
+  enabled: true
+  image:
+    repository: postgres
+    tag: "16"
+    digest: sha256:fe03a7605299a34ddf5e4f285dff78c3d7190a576b3c6b46f2fcff69f4bffd54
+    pullPolicy: IfNotPresent
+  auth:
+    username: postgres
+    password: ""
+    database: inboxzero
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: local-path
+
+redis:
+  enabled: true
+  image:
+    repository: redis
+    tag: "7"
+    digest: sha256:b2b95679e3b46fb51864949ed25ea976fc3a6bcc00a40a1bc00d568cb2822e50
+    pullPolicy: IfNotPresent
+  auth:
+    password: ""
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: local-path
+
+redisHttp:
+  enabled: true
+  image:
+    repository: hiett/serverless-redis-http
+    tag: latest
+    digest: sha256:5b0bb9239fce53abf87b2018a7a0deb9ec7bd900c5360738fe5fbeeb426f9150
+    pullPolicy: IfNotPresent
+  token: ""
+
+cron:
+  enabled: true
+  image:
+    repository: curlimages/curl
+    tag: "8.17.0"
+    digest: sha256:935d9100e9ba842cdb060de42472c7ca90cfe9a7c96e4dacb55e79e560b3ff40
+    pullPolicy: IfNotPresent
+
+worker:
+  enabled: true
+  replicaCount: 1

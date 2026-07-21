@@ -1,0 +1,58 @@
+captured_at: "2026-07-21T04:32Z"
+capture_mode: read_only_non_secret_metadata
+status: reconstructed_non_secret_preparation_only
+applyable: false
+source_repository:
+  remote: https://github.com/thethomasjfellows/inbox-zero.git
+  baseline_sha: 860c37104807f804b61402c5dbe42ef5ef141a80
+helm:
+  release: inbox-zero
+  namespace: inbox-zero
+  revision: 15
+  status: deployed
+  chart: inbox-zero-0.1.1
+  app_version: latest
+workloads:
+  - kind: Deployment
+    name: inbox-zero-web
+    ready: 1/1
+    image: ghcr.io/thethomasjfellows/inbox-zero@sha256:9b1ea25652fbd0df6c989b960713a4ca94192bdfdca9f377aeb72462ef8f3f7b
+  - kind: Deployment
+    name: inbox-zero-worker
+    ready: 1/1
+    image: ghcr.io/thethomasjfellows/inbox-zero@sha256:9b1ea25652fbd0df6c989b960713a4ca94192bdfdca9f377aeb72462ef8f3f7b
+  - kind: Deployment
+    name: inbox-zero-redis-http
+    ready: 1/1
+    image: docker.io/hiett/serverless-redis-http@sha256:5b0bb9239fce53abf87b2018a7a0deb9ec7bd900c5360738fe5fbeeb426f9150
+  - kind: StatefulSet
+    name: inbox-zero-postgresql
+    ready: 1/1
+    image: docker.io/library/postgres@sha256:fe03a7605299a34ddf5e4f285dff78c3d7190a576b3c6b46f2fcff69f4bffd54
+  - kind: StatefulSet
+    name: inbox-zero-redis
+    ready: 1/1
+    image: docker.io/library/redis@sha256:b2b95679e3b46fb51864949ed25ea976fc3a6bcc00a40a1bc00d568cb2822e50
+persistence:
+  - claim: data-inbox-zero-postgresql-0
+    status: Bound
+    storage_class: local-path
+    requested: 20Gi
+  - claim: data-inbox-zero-redis-0
+    status: Bound
+    storage_class: local-path
+    requested: 5Gi
+external_secret_contract:
+  runtime_secret: inbox-zero-runtime-secret
+  codex_cli_secret: inbox-zero-codex-cli
+  image_pull_secret: ghcr-thethomasjfellows
+  tls_secret: inbox-zero-tls
+backup:
+  baseline_indicator: qfido-state-backup.timer successful through 2026-07-20T07:08:41Z
+  fresh_restore_in_wave_3: false
+blockers:
+  - complete pre-cutover Helm values were not read because they may contain Secret values
+  - fresh isolated Postgres and Redis restore evidence is absent
+  - explicit RPO, RTO, cutover owner, rollback owner, and verification window are absent
+  - live functional checks beyond Kubernetes readiness were not run
+  - package-to-repository association is absent and requires a future labeled publication or supported GitHub UI action

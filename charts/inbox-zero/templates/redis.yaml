@@ -43,7 +43,7 @@ spec:
       {{- end }}
       containers:
         - name: redis
-          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          image: "{{ include "inbox-zero.imageRef" .Values.redis.image }}"
           imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
           args:
             - redis-server
