@@ -134,10 +134,22 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 {{- end -}}
 
+{{/*
+Render an image reference. A digest takes precedence over a tag so production
+overlays can pin the exact observed artifact.
+*/}}
+{{- define "inbox-zero.imageRef" -}}
+{{- if .digest -}}
+{{- printf "%s@%s" .repository .digest -}}
+{{- else -}}
+{{- printf "%s:%s" .repository .tag -}}
+{{- end -}}
+{{- end }}
+
 {{- define "inbox-zero.codexCliInitContainer" -}}
 {{- if .Values.codexCli.enabled }}
 - name: prepare-codex-cli-config
-  image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+  image: "{{ include "inbox-zero.imageRef" .Values.image }}"
   imagePullPolicy: {{ .Values.image.pullPolicy }}
   command:
     - sh

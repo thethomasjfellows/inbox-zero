@@ -42,7 +42,7 @@ spec:
       {{- end }}
       containers:
         - name: postgresql
-          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          image: "{{ include "inbox-zero.imageRef" .Values.postgresql.image }}"
           imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
           ports:
             - name: postgresql

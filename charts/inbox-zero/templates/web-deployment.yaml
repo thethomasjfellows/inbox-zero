@@ -37,7 +37,7 @@ spec:
       initContainers:
         {{- if and .Values.postgresql.enabled (not .Values.externalDatabase.enabled) }}
         - name: wait-for-postgresql
-          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          image: "{{ include "inbox-zero.imageRef" .Values.postgresql.image }}"
           imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
           command:
             - sh
@@ -57,7 +57,7 @@ spec:
       {{- end }}
       containers:
         - name: web
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ include "inbox-zero.imageRef" .Values.image }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http

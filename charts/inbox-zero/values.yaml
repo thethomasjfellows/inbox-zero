@@ -6,6 +6,7 @@
 image:
   repository: ghcr.io/elie222/inbox-zero
   tag: latest
+  digest: ""
   pullPolicy: Always
 
 imagePullSecrets: []
@@ -152,6 +153,7 @@ postgresql:
   image:
     repository: postgres
     tag: "16"
+    digest: ""
     pullPolicy: IfNotPresent
   auth:
     username: postgres
@@ -192,6 +194,7 @@ redis:
   image:
     repository: redis
     tag: "7"
+    digest: ""
     pullPolicy: IfNotPresent
   persistence:
     enabled: true
@@ -209,6 +212,7 @@ redisHttp:
   image:
     repository: hiett/serverless-redis-http
     tag: latest
+    digest: ""
     pullPolicy: IfNotPresent
   # Required when redisHttp.enabled=true. Do not use a guessable value.
   token: ""
@@ -236,6 +240,7 @@ cron:
   image:
     repository: curlimages/curl
     tag: "8.17.0"
+    digest: ""
     pullPolicy: IfNotPresent
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3

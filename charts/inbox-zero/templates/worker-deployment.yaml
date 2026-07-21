@@ -38,7 +38,7 @@ spec:
       initContainers:
         {{- if and .Values.redis.enabled (not .Values.externalRedis.enabled) }}
         - name: wait-for-redis
-          image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
+          image: "{{ include "inbox-zero.imageRef" .Values.redis.image }}"
           imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
           command:
             - sh
@@ -59,7 +59,7 @@ spec:
       {{- end }}
       containers:
         - name: worker
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: "{{ include "inbox-zero.imageRef" .Values.image }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command:
             - /app/docker/scripts/start-worker.sh

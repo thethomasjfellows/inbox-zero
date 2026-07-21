@@ -24,7 +24,7 @@ spec:
           restartPolicy: OnFailure
           containers:
             - name: curl
-              image: "{{ $.Values.cron.image.repository }}:{{ $.Values.cron.image.tag }}"
+              image: "{{ include "inbox-zero.imageRef" $.Values.cron.image }}"
               imagePullPolicy: {{ $.Values.cron.image.pullPolicy }}
               env:
                 - name: CRON_SECRET
